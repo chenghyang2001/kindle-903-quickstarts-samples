@@ -1,0 +1,5 @@
+a1bc69b 完成 F4：CLI：執行 python ledger.py <csv 路徑> 會把報表印到 stdout，結束碼 0；檔案不存在時印錯誤到 stderr（不顯示 traceback），並以結束碼 1 離開
+dd919db 完成 F3：format_report(records)：組出報表文字，包含各分類合計（依名稱排序）、每月總計（依時間排序）與總計，金額固定兩位小數，名稱與金額之間用 4 個空白分隔
+78acf24 完成 F2：sum_by_category(records) 依分類加總金額、sum_by_month(records) 依 YYYY-MM 加總金額，兩者都回傳 dict[str, float]
+b35e7bf 完成 F1：load_records(path)：以 UTF-8 讀取 date,category,amount 格式的 CSV，回傳 {date: str, category: str, amount: float} 清單並保留原順序；日期不合法、金額不是數字或欄位不足的列會被略過，並印警告到 stderr
+41e2f99 初始化：功能清單、驗收測試、進度筆記

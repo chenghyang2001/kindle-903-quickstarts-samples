@@ -2,6 +2,8 @@
 # K903 範例 S3 互動演練：兩階段自動寫程式 harness——初始化代理切功能寫測試，寫程式代理一個 session 做一項，中斷後接著做，一次跑一步
 # 用法：bash s3.sh <步驟 1-8>；第 8 步分兩半：bash s3.sh 8（先出題）→ bash s3.sh 8b（範例答案＋還原 workdir）
 #       bash s3.sh restore：把 workdir 還原成演練前 4/4 完成的備份（8b 也會問要不要還原）
+#       bash s3.sh seed：新電腦用，從 s3-long-running/snapshot-4of4 重建 workdir（不呼叫模型）；
+#       第 3、4、7 步和 restore 發現 workdir 與備份都不存在時也會自動重建
 # 呼叫模型：只有第 5、6 步會呼叫模型，各最多 2 次（harness.py 自己的 claude -p，--max-calls 2），整章最多 4 次；其餘步驟全部離線
 # 乾跑：bash s3.sh 5 --dry-run／bash s3.sh 6 --dry-run 用寫死的假回覆（內容取自 4/4 完成版）代替模型，
 #       產出寫到 s3-long-running/logs/dry-run-workdir（已被 .gitignore 排除），不動真正的 workdir，只用來檢查腳本路徑，不算演練
@@ -15,6 +17,7 @@ S3="$ROOT/s3-long-running"
 WD="$S3/workdir"
 BAK="$S3/workdir.bak-4of4"
 DRYWD="$S3/logs/dry-run-workdir"
+SNAP="$S3/snapshot-4of4"
 G=$'\e[32m'; Y=$'\e[33m'; C=$'\e[36m'; R=$'\e[31m'; B=$'\e[1m'; N=$'\e[0m'
 
 banner() { clear; printf '%s╔══════════════════════════════════════════════════════╗%s\n' "$C" "$N"; printf '%s  K903 範例 S3｜兩階段自動寫程式　第 %s / 8 步%s\n' "$B" "${STEP%b}" "$N"; printf '%s  %s%s\n' "$B" "$1" "$N"; printf '%s╚══════════════════════════════════════════════════════╝%s\n\n' "$C" "$N"; }
@@ -87,15 +90,47 @@ restore() {
   elif is_full "$WD"; then
     printf 'workdir 本來就是全部完成的狀態，不需要還原。\n'
   else
-    warn "找不到備份 workdir.bak-4of4，workdir 目前是 $(label_of "$WD")；請照 s3-long-running/README.md 重跑 harness"
+    warn "找不到備份 workdir.bak-4of4，workdir 目前是 $(label_of "$WD")；要回到 4/4 完成版：rm -rf s3-long-running/workdir && bash s3.sh seed（或照 s3-long-running/README.md 重跑 harness）"
     return 1
   fi
   printf 'workdir 現在：%s｜git HEAD %s\n' "$(label_of "$WD")" "$(cd "$WD" && git log -1 --format=%h 2>/dev/null)"
 }
 
+# 從 snapshot-4of4 重建 workdir：複製檔案 → git init → 一個 commit（原本的 5 個 commit 只留在 git-log.txt）
+seed() {
+  if [ -d "$WD" ]; then
+    printf 'workdir 已經存在（%s），不重建。要從快照重來，先刪掉 s3-long-running/workdir 再跑 bash s3.sh seed。
+' "$(label_of "$WD")"
+    return 0
+  fi
+  if [ -d "$BAK" ]; then
+    printf '有 workdir.bak-4of4 備份（演練中），不從快照重建；要還原請跑 bash s3.sh restore。
+'
+    return 0
+  fi
+  if [ ! -f "$SNAP/feature_list.json" ]; then warn "找不到快照 $SNAP/feature_list.json，無法重建"; return 1; fi
+  mkdir -p "$WD" && cp -R "$SNAP"/. "$WD"/ && rm -f "$WD/README.md" "$WD/git-log.txt"     || { warn "複製快照失敗"; rm -rf "$WD"; return 1; }
+  if ! (cd "$WD" && git init -q && git add -A         && git -c user.name=k903-harness -c user.email=harness@localhost commit -q              -m "從 snapshot-4of4 重建：4/4 完成版（原本的 git log 見 snapshot-4of4/git-log.txt）"); then
+    warn "git init／commit 失敗，已刪掉重建到一半的 workdir"; rm -rf "$WD"; return 1
+  fi
+  printf '%s已從 snapshot-4of4 重建 workdir：%s｜git HEAD %s%s
+' "$G" "$(label_of "$WD")" "$(cd "$WD" && git log -1 --format=%h)" "$N"
+}
+# 第 3、4、7 步和 restore 用：workdir 與備份都不存在（例如新電腦剛 clone）就自動重建
+ensure_wd() {
+  if [ ! -d "$WD" ] && [ ! -d "$BAK" ]; then
+    printf '%s找不到 workdir 也沒有備份（新電腦剛 clone？），先從 snapshot-4of4 自動重建。%s
+' "$Y" "$N"
+    seed || exit 1
+    echo
+  fi
+}
+
 if [ ! -d "$S3" ]; then echo "找不到範例資料夾：$S3"; exit 1; fi
 
 case "$STEP" in
+seed) STEP=0; seed ;;
+
 1) banner "長時間工作的難處：context 會滿、會中斷、會自我放水"
    tip "叫代理一口氣寫完一個專案會出三種事：對話越來越長塞爆 context、跑到一半被中斷就全部重來、自己說「做好了」其實沒做好。官方 autonomous-coding 的解法是「兩階段＋進度檔＋git」。先把三個難處對到 S3 的做法。本步不呼叫模型。"
    P='from pathlib import Path
@@ -187,7 +222,13 @@ for block in text.split("\n## ")[1:]:
 print()
 print("【3】git log --oneline：每通過一項就 commit 一次，可以回到任何一個存檔點")
 log = subprocess.run(["git", "log", "--oneline"], cwd=wd, capture_output=True, text=True, encoding="utf-8")
-for line in log.stdout.splitlines():
+lines = log.stdout.splitlines()
+if len(lines) == 1 and "snapshot-4of4" in lines[0]:
+    print("  " + lines[0][:90])
+    print("  ↑ 這個 workdir 是從 snapshot-4of4 重建的（新電腦 clone 後沒有原本的 workdir），所以只有 1 個 commit。")
+    print("    原本 harness 逐項 commit 的歷史存在 snapshot-4of4/git-log.txt：")
+    lines = Path("snapshot-4of4/git-log.txt").read_text(encoding="utf-8").splitlines()
+for line in lines:
     print("  " + line[:90])
 print()
 nxt = harness.pick_feature(feats)
@@ -195,11 +236,12 @@ print("harness 據此推算：下一個是 Session {}，要做的功能：{}".fo
     harness.next_session_no(wd), nxt["id"] if nxt else "沒有（全部完成，重跑也不會呼叫模型）"))
 print()
 print("CODE_PROMPT 裡帶給模型的段落：", [l for l in harness.CODE_PROMPT.splitlines() if l.startswith("=== ")])'
-   show "$P"; run "$P" ;;
+   show "$P"; ensure_wd; run "$P" ;;
 
 4) banner "權限護欄：寫檔路徑、驗收指令白名單、不准改 tests/"
    tip "模型沒有任何工具，只能回 JSON。寫檔、跑測試都由 harness 代做，所以護欄全部寫在 harness 裡。先跑官方式的 --selftest，再逐項測給你看哪些會被擋。本步不呼叫模型。"
    CMD='PYTHONUTF8=1 python harness.py --selftest; echo "結束碼：$?（0＝全部規則都正常擋下）"'
+   ensure_wd
    show "$CMD"; (cd "$S3" && eval "$CMD")
    echo
    P='from pathlib import Path
@@ -282,8 +324,8 @@ print("乾跑結束碼：", code, "｜產出在 logs/dry-run-workdir（真正的
      done_step
    fi ;;
 
-7) banner "跑代理寫出來的 ledger.py：用 logs/sample.csv 實際算一次"
-   tip "代理寫出的工具真的能用嗎？用 logs/sample.csv（第 5 列是故意放的壞列）實際跑一次，並和 app_spec.md 的範例輸出逐行比對。剛剛演練的 workdir 若還沒做到 F4（命令列），就改用 4/4 完成的備份版。最後再跑全部驗收測試和「檔案不存在」的錯誤路徑。本步不呼叫模型。"
+7) banner "跑代理寫出來的 ledger.py：用 sample.csv 實際算一次"
+   tip "代理寫出的工具真的能用嗎？用 sample.csv（第 5 列是故意放的壞列）實際跑一次，並和 app_spec.md 的範例輸出逐行比對。剛剛演練的 workdir 若還沒做到 F4（命令列），就改用 4/4 完成的備份版。最後再跑全部驗收測試和「檔案不存在」的錯誤路徑。本步不呼叫模型。"
    P='import os, subprocess, sys
 from pathlib import Path
 import harness
@@ -300,13 +342,13 @@ if not ((drill / "feature_list.json").exists() and all(f["passes"] for f in harn
     target = full if full.exists() else drill
 print("這一步用：", target.as_posix())
 print()
-csv_path = Path("logs/sample.csv").resolve()
-print("=== logs/sample.csv ===")
+csv_path = Path("sample.csv").resolve()
+print("=== sample.csv ===")
 print(csv_path.read_text(encoding="utf-8").strip())
 print()
 env = dict(os.environ, PYTHONIOENCODING="utf-8")
 p = subprocess.run([sys.executable, "ledger.py", str(csv_path)], cwd=target, capture_output=True, text=True, encoding="utf-8", env=env)
-print("=== python ledger.py logs/sample.csv（結束碼 {}） ===".format(p.returncode))
+print("=== python ledger.py sample.csv（結束碼 {}） ===".format(p.returncode))
 print("[stderr] " + p.stderr.strip())
 print(p.stdout.rstrip())
 print()
@@ -321,7 +363,7 @@ print("  " + (t.stderr.strip().splitlines() or ["（無輸出）"])[-1] + "｜" 
 m = subprocess.run([sys.executable, "ledger.py", "no-such.csv"], cwd=target, capture_output=True, text=True, encoding="utf-8", env=env)
 print("=== 檔案不存在：python ledger.py no-such.csv（結束碼 {}，預期 1） ===".format(m.returncode))
 print("  [stderr] " + m.stderr.strip() + ("（有 Traceback，不合規格）" if "Traceback" in m.stderr else "（沒有 Traceback，合規格）"))'
-   show "$P"; run "$P" ;;
+   show "$P"; ensure_wd; run "$P" ;;
 
 8) banner "三個靈魂拷問：先自己回答"
    tip "先不要看答案。對著 S3 想一想三題，各用一兩句話說出來；第 2 題特別想一下：這個 harness 設計成可以「沒人看著跑好幾個小時」，那它的權限該比有人看著時鬆還是嚴？想好之後說「繼續」，教練會執行 bash s3.sh 8b。"
@@ -392,7 +434,7 @@ PY
    fi
    done_step ;;
 
-restore) STEP=8b; restore ;;
+restore) STEP=8b; ensure_wd; restore ;;
 
-*) echo "步驟要 1～8（第 8 步的後半是 8b）；還原 workdir 用 restore" ;;
+*) echo "步驟要 1～8（第 8 步的後半是 8b）；還原 workdir 用 restore；新電腦從快照重建 workdir 用 seed" ;;
 esac

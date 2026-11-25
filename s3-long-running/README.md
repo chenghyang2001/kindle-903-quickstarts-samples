@@ -44,6 +44,15 @@ PYTHONUTF8=1 python harness.py                      # 再跑一次同一條指�
 PYTHONUTF8=1 python workdir/ledger.py my.csv        # 用代理寫出來的工具
 ```
 
+**新電腦先看這裡**：`workdir/` 被外層 `.gitignore` 排除，clone 下來時不存在。要演練或查看 4/4 完成版，不必重跑 harness（不呼叫模型），從進版控的快照 `snapshot-4of4/` 重建即可：
+
+```bash
+cd ~/workspace/kindle-903-quickstarts-samples/practice/interactive
+bash s3.sh seed      # 複製 snapshot-4of4 → workdir，git init，用一個 commit 提交（workdir 已存在就什麼都不做）
+```
+
+不跑 seed 也行：互動演練的第 3、4、7 步與 `restore` 發現 workdir 和 `workdir.bak-4of4` 都不存在時會自動重建。重建出來的 workdir 只有 1 個 commit，原本的 5 個 commit 記在 `snapshot-4of4/git-log.txt`。第 7 步用的測試資料是進版控的 `sample.csv`。
+
 參數說明：`--max-sessions N` 指定這次最多跑幾個 session，`--max-calls N` 指定這次最多呼叫模型幾次，`--workdir PATH` 指定產出資料夾。模型用 Claude Code 的預設模型，要換就設 `K902_CLI_MODEL=haiku`。
 
 ## 5. 實際跑出來的結果（2026-11-25 冒煙測試，節錄）

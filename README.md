@@ -103,6 +103,14 @@ bash s3.sh restore    # workdir.bak-4of4 → workdir（8b 結尾也會問要不�
 
 `workdir.bak-*/` 已在 `.gitignore`。
 
+**新電腦先跑 seed（或讓它自動重建）**：`workdir/` 也在 `.gitignore`，clone 下來時不存在。4/4 完成版的工作樹放在進版控的 `s3-long-running/snapshot-4of4/`：
+
+```bash
+bash s3.sh seed       # 從 snapshot-4of4 重建 workdir：複製檔案、git init、一個 commit；不呼叫模型
+```
+
+第 3、4、7 步與 `restore` 發現 workdir 和 `workdir.bak-4of4` 都不存在時會自動重建，不跑 seed 也可以。重建版只有 1 個 commit，第 3 步會改顯示 `snapshot-4of4/git-log.txt` 裡原本的 5 個 commit。
+
 ## 使用前準備
 
 1. `claude` CLI 已安裝並登入（跑 `claude -p "hi"` 能回應）。
