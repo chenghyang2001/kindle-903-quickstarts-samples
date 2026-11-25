@@ -8,5 +8,6 @@ core
 */runs/
 */logs/
 */workdir/
+*/workdir.bak-*/
 node_modules/
 .venv/

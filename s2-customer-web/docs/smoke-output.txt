@@ -1,0 +1,12 @@
+S2 問答網頁啟動：http://127.0.0.1:8903（知識庫 5 份，Ctrl+C 結束）
+127.0.0.1 - - [25/Nov/2026 14:14:46] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2026 14:14:50] "POST /api/ask HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2026 14:14:54] "POST /api/ask HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2026 14:14:54] "POST /api/ask HTTP/1.1" 400 -
+[PASS] 知識庫內（4.2 秒）HTTP 200
+       {"answer": "DR-800 最大載重為 800 公斤。充電時間方面，從 10% 充到 90% 約需 1.5 小時。另外，DR-800 支援自動充電，電量低於設定值（預設 20%）時會自行回到充電樁充電。", "sources": ["01-product-specs.md", "03-charging-battery.md"], "confidence": "high", "needs_human": false}
+[PASS] 知識庫外（3.6 秒）HTTP 200
+       {"answer": "這個問題我無法從產品資料確認，已為您轉真人客服。", "sources": [], "confidence": "low", "needs_human": true}
+[PASS] 空字串（0.0 秒）HTTP 400
+       {"error": "question 不可為空"}
+結果：全部通過（模型呼叫 2 次）

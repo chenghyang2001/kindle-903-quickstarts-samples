@@ -1,0 +1,6 @@
+{
+  "agent": "price-report",
+  "schedule": {"type": "cron", "expression": "0 8 * * *", "timezone": "Asia/Taipei"},
+  "task_name": "K903-S4-price-report",
+  "budget_note": "本機版沒有花費上限；雲端版 budget.max_list_cost 以「分」為單位的字串，例如 \"50\" 是 0.5 美元"
+}

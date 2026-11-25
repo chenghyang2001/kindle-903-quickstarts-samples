@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMR 產品問答</title>
+<style>
+  body { margin: 0; background: #fff; color: #111; font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.4rem; margin: 8px 0 4px; }
+  .sub { color: #666; font-size: 0.9rem; margin-bottom: 16px; }
+  #chat { border: 1px solid #ddd; border-radius: 8px; padding: 12px; min-height: 320px; }
+  .msg { margin: 10px 0; padding: 10px 12px; border-radius: 8px; line-height: 1.6; white-space: pre-wrap; }
+  .user { background: #f2f2f2; margin-left: 20%; }
+  .bot { border: 1px solid #ddd; margin-right: 10%; }
+  .meta { color: #666; font-size: 0.85rem; margin-top: 6px; }
+  .human { display: inline-block; border: 1px solid #111; border-radius: 4px; padding: 1px 6px; font-size: 0.8rem; margin-top: 6px; }
+  .error { color: #a00; }
+  form { display: flex; gap: 8px; margin-top: 12px; }
+  input { flex: 1; padding: 10px; font-size: 1rem; border: 1px solid #bbb; border-radius: 6px; }
+  button { padding: 10px 16px; font-size: 1rem; background: #fff; border: 1px solid #111; border-radius: 6px; cursor: pointer; }
+  button:disabled { color: #999; border-color: #ccc; }
+  .hints { margin-top: 10px; font-size: 0.85rem; color: #666; }
+  .hints button { font-size: 0.85rem; padding: 4px 8px; margin: 2px; border-color: #bbb; }
+</style>
+</head>
+<body>
+<main>
+  <h1>示範機器人股份有限公司｜AMR 產品問答</h1>
+  <div class="sub">虛構公司的教學範例。答案只根據產品資料，查不到會轉真人客服。</div>
+  <section id="chat" aria-label="對話紀錄" aria-live="polite"></section>
+  <form id="ask-form">
+    <input id="question" maxlength="500" placeholder="例如：DR-800 最大載重多少？" aria-label="輸入問題" autocomplete="off">
+    <button id="send" type="submit">送出</button>
+  </form>
+  <div class="hints">試試看：
+    <button type="button" data-q="DR-800 最大載重多少？充電要多久？">載重與充電</button>
+    <button type="button" data-q="需要貼磁條嗎？用什麼導航？">導航方式</button>
+    <button type="button" data-q="保固幾年？">保固</button>
+  </div>
+</main>
+<script>
+  // 全部用 textContent 顯示：模型回覆與使用者輸入都可能含 HTML，不能用 innerHTML（防 XSS）
+  const chat = document.getElementById("chat");
+  const form = document.getElementById("ask-form");
+  const input = document.getElementById("question");
+  const sendBtn = document.getElementById("send");
+
+  function addLine(parent, className, text) {
+    const div = document.createElement("div");
+    div.className = className;
+    div.textContent = text;
+    parent.appendChild(div);
+    return div;
+  }
+
+  function showReply(reply) {
+    const box = addLine(chat, "msg bot", reply.answer ?? "（沒有回答）");
+    const sources = Array.isArray(reply.sources) && reply.sources.length ? reply.sources.join("、") : "無";
+    addLine(box, "meta", `來源：${sources}｜信心：${reply.confidence ?? "?"}`);
+    if (reply.needs_human === true) addLine(box, "human", "已轉真人客服");
+  }
+
+  async function ask(question) {
+    addLine(chat, "msg user", question);
+    const waiting = addLine(chat, "msg bot meta", "查詢中…（約 10～30 秒）");
+    sendBtn.disabled = true;
+    try {
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+      const data = await res.json();
+      waiting.remove();
+      if (!res.ok) { addLine(chat, "msg bot error", `輸入有誤：${data.error ?? res.status}`); return; }
+      showReply(data);
+    } catch (err) {
+      waiting.remove();
+      addLine(chat, "msg bot error", `連線失敗，請稍後再試（${err.message}）`);
+    } finally {
+      sendBtn.disabled = false;
+      chat.scrollTop = chat.scrollHeight;
+    }
+  }
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const question = input.value.trim();
+    if (!question) { addLine(chat, "msg bot error", "請先輸入問題"); return; }
+    input.value = "";
+    ask(question);
+  });
+  document.querySelectorAll(".hints button").forEach((btn) => {
+    btn.addEventListener("click", () => ask(btn.dataset.q));
+  });
+</script>
+</body>
+</html>

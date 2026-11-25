@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head><meta charset="UTF-8"><title>練習網購｜搜尋結果</title>
+<style>body{font-family:sans-serif;max-width:720px;margin:2em auto;padding:0 16px}li{margin:8px 0}</style>
+</head>
+<body>
+<h1>搜尋結果</h1>
+<p id="summary"></p>
+<ul id="list">
+  <li data-name="NetLink GS-105 5 埠 Gigabit 交換器"><a href="product-gs105.html">NetLink GS-105 5 埠 Gigabit 交換器</a>（3 家賣家）</li>
+  <li data-name="NetLink GS-108 8 埠 Gigabit 交換器"><a href="product-gs108.html">NetLink GS-108 8 埠 Gigabit 交換器</a>（4 家賣家）</li>
+  <li data-name="Mercury MS-108E 8 埠 網管型交換器"><a href="product-ms108e.html">Mercury MS-108E 8 埠 網管型交換器</a>（2 家賣家）</li>
+  <li data-name="USB-C 充電線 1 公尺"><a href="index.html">USB-C 充電線 1 公尺</a>（缺貨）</li>
+</ul>
+<p><a href="index.html">回搜尋頁</a></p>
+<script>
+  // 為什麼用前端過濾：讓網站保持純靜態檔，http.server 就能跑，不需要後端
+  const q = (new URLSearchParams(location.search).get("q") || "").trim().toLowerCase();
+  let shown = 0;
+  document.querySelectorAll("#list li").forEach(li => {
+    const hit = !q || q.split(/\s+/).every(w => li.dataset.name.toLowerCase().includes(w));
+    li.style.display = hit ? "" : "none";
+    if (hit) shown++;
+  });
+  document.getElementById("summary").textContent = q ? `「${q}」共 ${shown} 筆` : `全部商品共 ${shown} 筆`;
+</script>
+</body></html>

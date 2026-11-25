@@ -1,0 +1,15 @@
+{
+  "source": "教學用假資料（參考 2026-11-24 網路交換器比價紀錄改編，非即時價格）",
+  "captured_at": "2026-11-25",
+  "need": "家裡一個網路孔分成多孔接有線設備；Gigabit、非網管、非 PoE、CP 值高",
+  "items": [
+    {"name": "TP-Link TL-SG105 5 埠 Gigabit 鋼殼", "price": 439, "rating": 4.98, "reviews": 5457, "sold": 10000, "seller": "TP-Link 官方商城"},
+    {"name": "Mercusys MS105G 5 埠 Gigabit", "price": 229, "rating": 4.98, "reviews": 2282, "sold": 8000, "seller": "光華 3C 專賣店（優選）"},
+    {"name": "D-Link DGS-105 5 埠 Gigabit 金屬殼", "price": 439, "rating": 4.98, "reviews": 2267, "sold": 4000, "seller": "蝦皮商城（台南）"},
+    {"name": "Mercusys MS108G 8 埠 Gigabit", "price": 369, "rating": 4.97, "reviews": 640, "sold": 1500, "seller": "光華 3C 專賣店（優選）"},
+    {"name": "TOTOLINK S505G 5 埠 Gigabit", "price": 275, "rating": 4.98, "reviews": 206, "sold": 613, "seller": "速易購電腦"},
+    {"name": "TP-Link TL-SG108 8 埠 Gigabit 鋼殼", "price": 729, "rating": 4.98, "reviews": 425, "sold": 956, "seller": "蝦皮商城（台中）"},
+    {"name": "D-Link DGS-108 8 埠 Gigabit 金屬殼", "price": 669, "rating": 4.98, "reviews": 95, "sold": 323, "seller": "優選賣家（含稅）"},
+    {"name": "無品牌 5 埠 Gigabit 交換器", "price": 159, "rating": 4.6, "reviews": 38, "sold": 120, "seller": "一般賣家（海外出貨）"}
+  ]
+}

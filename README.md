@@ -46,15 +46,62 @@ K902（官方 `anthropics/claude-quickstarts` 的 10 章導讀）的續集。K90
 
 ## 5 個範例的三個靈魂拷問總覽
 
-> 以各範例 README 為準；本表是規劃時的初版，範例實作後若有出入，以範例內為準。
+> 本表摘自各範例 README 第 2 節，細節以範例內為準。五個範例的 `claude -p` 都用 `--tools ""` 啟動，模型本身沒有任何工具，下表的「工具」都是程式代為執行。
 
 | 範例 | 做給誰用 | 工具權限 | 資料與成果存哪 |
 | --- | --- | --- | --- |
-| S1 本機資料夾小管家 | 使用者自己，在終端機用 | 只能讀指定資料夾（列目錄、讀檔）；不給寫入、刪除、網路 | 不寫任何檔案，結果印在終端機，另留一份 JSON 執行紀錄 |
-| S2 AMR 產品問答網頁 | 外部客戶，用瀏覽器問 | 只能查 `kb/` 知識庫；不能碰其他檔案、不能上網 | 知識庫在 `kb/`，對話紀錄存本機 `logs/`；正式上線要改用 API key，不能用個人訂閱 |
-| S3 兩階段自動寫程式 | 使用者自己，無人看著連續跑 | 只能在 `workdir/` 內讀寫檔、跑測試 | 成果是 `workdir/` 裡的程式、進度檔與 git 歷史 |
-| S4 代管式每日比價代理 | 使用者自己，排程自動跑 | 只能讀輸入資料、寫報告 | 設定檔、session 紀錄、報告存在 `runs/`；真雲端版會在 Anthropic 的容器裡 |
-| S5 瀏覽器讀價代理 | 使用者自己 | 只能操作一個無頭瀏覽器，且只限本機練習網站 | 截圖和讀到的資料存 `runs/` |
+| S1 本機資料夾小管家 | 使用者自己，在終端機一個人用 | `list_dir`、`read_file`（最多 4000 字）、`search_text`，全部唯讀，限定一個根目錄（預設 shopping-notes，可用 `--root` 改）；不給寫檔、刪檔、執行指令、上網 | 答案只印在終端機；迴圈紀錄寫 `runs/<時間>.json`，只存每輪請求與結果長度、不存工具讀到的全文；`runs/` 不進版控 |
+| S2 AMR 產品問答網頁 | 外部客戶（想買 AMR 的工廠、倉儲人員）；本範例只在 127.0.0.1 示範，正式上線要改用公司 API key，不能用個人訂閱 | 程式讀 `kb/` 的 5 份 markdown 給模型看；模型不能讀檔、上網、查訂單、下單、改價、寄信；議價、客訴、退貨一律交真人 | 知識庫 `kb/*.md` 進 git；每次問答寫 `logs/YYYY-MM-DD.jsonl`（可能含客戶個資，`logs/` 不進版控） |
+| S3 兩階段自動寫程式 | 想學長時間任務怎麼分 session 接力的自己；產出的 `ledger.py` 是自用記帳小工具 | 模型只回 JSON，寫檔、跑測試、commit 由 harness 代做；只准寫進 `workdir/`，擋 `..`、絕對路徑、`.git/`；清單與進度檔只有 harness 能寫；不能改 `tests/`；一次最多呼叫模型 10 次 | 全部在 `workdir/`（獨立 git repo）：`feature_list.json`、`progress.md`、`tests/`、`ledger.py` 與 git 歷史；外層 repo 排除 `workdir/` |
+| S4 代管式每日比價代理 | 只有自己，無人值守（每天排程跑一次），靠評分者把關與事件紀錄 | `read_input`（只讀 `data/` 指定的一個 JSON）、`write_report`（只寫自己 session 的 `report.md`），呼叫前比對 `agent.json` 的工具清單；刻意不給 `web_search`、`web_fetch`、`bash`、`send_email` | 輸入 `data/switches.json`；設定 `agents/price-report/agent.json`＋`agent-lock.json`；成果 `runs/<session_id>/` 的 `events.jsonl`、`report.md`、`summary.json`，`runs/` 不進版控 |
+| S5 瀏覽器讀價代理 | 只有自己，在終端機看著它跑（有人即時看著） | `navigate`（只限白名單的本機練習網站 `127.0.0.1:<埠>`）、`read_page`、`click`、`type`、`screenshot`；不連外網、不登入、不付款、不讀寫本機其他檔案 | 練習網站 `site/` 進版控；每次執行的 `step-N.png` 與 `result.json` 存 `runs/<時間>/`，不進版控 |
+
+## 互動演練
+
+`practice/interactive/` 是五個範例的逐步演練腳本，一次跑一步；`coach-sN.txt` 是每一步的教練講稿。
+
+用法（Git Bash，在 repo 根目錄）：
+
+```bash
+cd practice/interactive
+bash s1.sh 1      # 格式：bash sN.sh <步驟>，N 是範例編號
+```
+
+- 每章 8 步，第 8 步分兩半：`bash sN.sh 8` 先出三個靈魂拷問，自己想好後再跑 `bash sN.sh 8b` 看範例答案。
+- 建議順序：S1 → S2 → S3 → S4 → S5（和上面的學習順序一樣）。
+
+各章會呼叫真模型的步驟（數字取自各 `sN.sh` 開頭註解，其餘步驟全部離線）：
+
+| 章 | 呼叫模型的步驟 | 大約次數 |
+| --- | --- | --- |
+| S1 | 第 4 步 | 最多 2 次 |
+| S2 | 第 5、6 步 | 各 1 次，共 2 次 |
+| S3 | 第 5、6 步 | 各最多 2 次，整章最多 4 次 |
+| S4 | 第 4 步 | 最多 2 次 |
+| S5 | 第 5 步 | 實測 4 次，上限 8 次 |
+
+### `--dry-run`：不呼叫模型，只檢查腳本路徑
+
+用寫死的假回覆代替模型，畫面會標明是乾跑，不算演練：
+
+```bash
+bash s1.sh 4 --dry-run
+bash s3.sh 5 --dry-run    # 產出寫到 s3-long-running/logs/dry-run-workdir，不動真正的 workdir
+bash s3.sh 6 --dry-run
+bash s4.sh 4 --dry-run    # session 寫到暫存資料夾，跑完刪掉
+```
+
+S2、S5 的腳本沒有 `--dry-run`。
+
+### S3 的 `restore`
+
+S3 第 5 步會先把 4/4 完成的 `s3-long-running/workdir` 改名成 `workdir.bak-4of4`，再從空的 workdir 重跑。演練完要還原：
+
+```bash
+bash s3.sh restore    # workdir.bak-4of4 → workdir（8b 結尾也會問要不要還原）
+```
+
+`workdir.bak-*/` 已在 `.gitignore`。
 
 ## 使用前準備
 
@@ -85,4 +132,5 @@ TEMPLATE-three-questions.md    三個靈魂拷問空白模板
 CLAUDE.md                      給 Claude Code 的專案說明
 shared/                        共用轉接層（claude -p）
 s1-agent-loop/ … s5-browser-computer/   五個範例
+practice/interactive/          互動演練腳本 s1.sh～s5.sh 與教練稿 coach-s1.txt～coach-s5.txt
 ```
