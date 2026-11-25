@@ -32,7 +32,7 @@ sys.path.insert(0, ".")
 sys.path.insert(0, "../shared")
 $1
 PY
-); done_step; }
+); RUN_RC=$?; done_step; }
 # 在 s3-long-running/ 底下跑一行 shell 指令
 runcmd() { (cd "$S3" && eval "$1"); done_step; }
 # 印出某個 workdir 的完成數，例如 4/4；沒有清單就印 none
@@ -362,8 +362,11 @@ print("=== 全部驗收測試：python -m unittest discover（結束碼 {}） ==
 print("  " + (t.stderr.strip().splitlines() or ["（無輸出）"])[-1] + "｜" + next((l for l in t.stderr.splitlines() if l.startswith("Ran ")), ""))
 m = subprocess.run([sys.executable, "ledger.py", "no-such.csv"], cwd=target, capture_output=True, text=True, encoding="utf-8", env=env)
 print("=== 檔案不存在：python ledger.py no-such.csv（結束碼 {}，預期 1） ===".format(m.returncode))
-print("  [stderr] " + m.stderr.strip() + ("（有 Traceback，不合規格）" if "Traceback" in m.stderr else "（沒有 Traceback，合規格）"))'
-   show "$P"; ensure_wd; run "$P" ;;
+print("  [stderr] " + m.stderr.strip() + ("（有 Traceback，不合規格）" if "Traceback" in m.stderr else "（沒有 Traceback，合規格）"))
+if t.returncode != 0:
+    print("驗收測試沒有全部通過，第 7 步回傳結束碼 1")
+    raise SystemExit(1)'
+   show "$P"; ensure_wd; run "$P"; exit "$RUN_RC" ;;
 
 8) banner "三個靈魂拷問：先自己回答"
    tip "先不要看答案。對著 S3 想一想三題，各用一兩句話說出來；第 2 題特別想一下：這個 harness 設計成可以「沒人看著跑好幾個小時」，那它的權限該比有人看著時鬆還是嚴？想好之後說「繼續」，教練會執行 bash s3.sh 8b。"
